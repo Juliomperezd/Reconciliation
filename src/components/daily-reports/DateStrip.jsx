@@ -40,13 +40,14 @@ export default function DateStrip({ days, selectedDayId, onSelectDay, onSeeAll, 
 
       <Divider orientation="vertical" flexItem sx={{ mx: 0.5, borderColor: 'rgba(0,0,0,0.07)' }} />
 
-      {visibleDays.map((day) => (
+      {visibleDays.map((day, i) => (
         <DayCard
           key={day.id}
           day={day}
           selected={selectedDayId === day.id}
           onClick={() => onSelectDay(day.id)}
           unified={unified}
+          isFirst={i === 0}
         />
       ))}
     </Box>

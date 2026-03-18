@@ -1,6 +1,65 @@
-import React, { useState, useEffect } from 'react';
-import { Box, Typography, TextField, IconButton, CircularProgress } from '@mui/material';
-import { Send, CheckCircle, ExpandMore, AutoFixHigh } from '@mui/icons-material';
+import React, { useState, useEffect, useRef } from 'react';
+import { Box, Typography, TextField, IconButton, CircularProgress, Collapse, Divider } from '@mui/material';
+import { Send, ExpandMore, AutoFixHigh, Check } from '@mui/icons-material';
+import { initialComments } from '../../data/dummy';
+
+// ── Confetti + Done toast ─────────────────────────────────────────────────────
+const CONFETTI_COLORS = ['#FF17E9', '#1A1A2E', '#FFB800', '#4CAF50', '#60A5FA', '#F87171', '#A78BFA'];
+
+function DoneBurst({ active }) {
+  if (!active) return null;
+
+  const particles = Array.from({ length: 28 }, (_, i) => {
+    const angle = (i / 28) * 360 + Math.random() * 10;
+    const dist = 36 + Math.random() * 32;
+    const dx = Math.cos((angle * Math.PI) / 180) * dist;
+    const dy = Math.sin((angle * Math.PI) / 180) * dist;
+    const color = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
+    const w = 5 + Math.random() * 5;
+    const h = 4 + Math.random() * 4;
+    const rotate = Math.random() * 360;
+    const delay = Math.random() * 0.08;
+    return { dx, dy, color, w, h, rotate, delay };
+  });
+
+  return (
+    <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 20 }}>
+      {/* Confetti particles */}
+      {particles.map((p, i) => (
+        <Box key={i} sx={{
+          position: 'absolute',
+          width: p.w, height: p.h,
+          bgcolor: p.color,
+          borderRadius: '1px',
+          animation: `cf${i} 0.65s ${p.delay}s ease-out forwards`,
+          opacity: 0,
+          [`@keyframes cf${i}`]: {
+            '0%': { transform: `translate(0,0) rotate(0deg)`, opacity: 1 },
+            '100%': { transform: `translate(${p.dx}px,${p.dy}px) rotate(${p.rotate}deg)`, opacity: 0 },
+          },
+        }} />
+      ))}
+      {/* Done pill */}
+      <Box sx={{
+        bgcolor: '#1A1A2E', color: '#fff',
+        px: 2, py: 0.75, borderRadius: '100px',
+        display: 'flex', alignItems: 'center', gap: 0.75,
+        fontSize: 13, fontWeight: 700,
+        animation: 'donePop 0.65s ease-out forwards',
+        '@keyframes donePop': {
+          '0%': { transform: 'scale(0.6)', opacity: 0 },
+          '30%': { transform: 'scale(1.1)', opacity: 1 },
+          '55%': { transform: 'scale(1)', opacity: 1 },
+          '85%': { transform: 'scale(1)', opacity: 1 },
+          '100%': { transform: 'scale(0.9)', opacity: 0 },
+        },
+      }}>
+        <Check sx={{ fontSize: 14 }} />
+        Done!
+      </Box>
+    </Box>
+  );
+}
 
 // ── Loading screen ────────────────────────────────────────────────────────────
 function LoadingState() {
@@ -9,248 +68,295 @@ function LoadingState() {
     const t = setInterval(() => setDot((d) => (d + 1) % 4), 500);
     return () => clearInterval(t);
   }, []);
-
   return (
-    <Box sx={{
-      flex: 1,
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 2.5,
-      px: 3,
-    }}>
+    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2.5, px: 3 }}>
       <CircularProgress size={28} thickness={3} sx={{ color: '#FF17E9' }} />
       <Box sx={{ textAlign: 'center' }}>
-        <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#1A1A2E' }}>
-          Analyzing your day{'·'.repeat(dot)}
-        </Typography>
-        <Typography sx={{ fontSize: 12, color: '#aaa', mt: 0.5 }}>
-          Please wait a few seconds
-        </Typography>
+        <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#1A1A2E' }}>Analyzing your day{'·'.repeat(dot)}</Typography>
+        <Typography sx={{ fontSize: 12, color: '#aaa', mt: 0.5 }}>Please wait a few seconds</Typography>
       </Box>
     </Box>
   );
 }
 
-// ── Single task block ─────────────────────────────────────────────────────────
-function TaskBlock({ number, title, optional = false, done = false, children }) {
-  const [open, setOpen] = useState(false);
-
+// ── Sub-task row ──────────────────────────────────────────────────────────────
+function SubTask({ label, done, onToggle }) {
+  const [burst, setBurst] = useState(false);
+  const handleCheck = (e) => {
+    e.stopPropagation();
+    if (!done) { setBurst(true); setTimeout(() => setBurst(false), 800); }
+    onToggle();
+  };
   return (
-    <Box sx={{
-      border: `1px solid ${done ? 'rgba(76,175,80,0.2)' : 'rgba(0,0,0,0.08)'}`,
-      borderRadius: '12px',
-      overflow: 'hidden',
-      bgcolor: done ? 'rgba(76,175,80,0.03)' : '#fff',
-    }}>
-      {/* Tappable header */}
-      <Box
-        onClick={() => !done && setOpen((o) => !o)}
-        sx={{
-          px: 2, py: 1.5,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1.5,
-          cursor: done ? 'default' : 'pointer',
-          userSelect: 'none',
-          '&:hover': !done ? { bgcolor: 'rgba(0,0,0,0.02)' } : {},
-        }}
-      >
-        {done
-          ? <CheckCircle sx={{ fontSize: 18, color: '#4CAF50', flexShrink: 0 }} />
-          : (
-            <Box sx={{
-              width: 22, height: 22, borderRadius: '50%',
-              bgcolor: '#1A1A2E', color: '#fff',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 11, fontWeight: 700, flexShrink: 0,
-            }}>
-              {number}
-            </Box>
-          )
-        }
-        <Typography sx={{
-          fontSize: 13, fontWeight: 600,
-          color: done ? '#aaa' : '#1A1A2E',
-          flexGrow: 1,
-          textDecoration: done ? 'line-through' : 'none',
-        }}>
-          {title}
-        </Typography>
-        {optional && !done && (
-          <Typography sx={{ fontSize: 10, color: '#ccc', fontWeight: 500 }}>
-            Optional
-          </Typography>
-        )}
-        {!done && (
-          <ExpandMore sx={{
-            fontSize: 18, color: '#bbb', flexShrink: 0,
-            transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
-            transition: 'transform 0.2s',
-          }} />
-        )}
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, py: 0.75, position: 'relative' }}>
+      <Box onClick={handleCheck} sx={{
+        width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        transition: 'all 0.2s', cursor: 'pointer',
+        ...(done ? { bgcolor: '#4CAF50' } : { border: '1.5px solid rgba(0,0,0,0.18)', '&:hover': { borderColor: '#4CAF50' } }),
+      }}>
+        {done && <Check sx={{ fontSize: 11, color: '#fff' }} />}
       </Box>
-
-      {/* Expandable content */}
-      {open && !done && (
-        <Box sx={{ px: 2, pb: 2 }}>
-          {children}
-        </Box>
-      )}
+      <Typography sx={{ fontSize: 12, color: done ? '#bbb' : '#444', textDecoration: done ? 'line-through' : 'none', flex: 1 }}>
+        {label}
+      </Typography>
+      {burst && <DoneBurst active />}
     </Box>
   );
 }
 
-// ── Issues task content ───────────────────────────────────────────────────────
-function IssuesTaskContent({ onAnalyze }) {
-  return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-        <AutoFixHigh sx={{ color: '#C2410C', fontSize: 15, flexShrink: 0, mt: 0.15 }} />
-        <Typography sx={{ color: '#C2410C', fontSize: 12 }}>
-          We found some issues between POS and declared amounts.
-        </Typography>
-      </Box>
-      <Box
-        onClick={onAnalyze}
-        sx={{
-          display: 'inline-flex', alignItems: 'center',
-          px: 1.5, py: 0.5, bgcolor: '#9A3412', color: '#fff',
-          borderRadius: 1.5, fontSize: 12, fontWeight: 600,
-          cursor: 'pointer', width: 'fit-content',
-          '&:hover': { bgcolor: '#7C2D12' },
-        }}
-      >
-        Analyze with sundayAI
-      </Box>
-    </Box>
-  );
-}
+// ── Task block ────────────────────────────────────────────────────────────────
+function TaskBlock({ number, title, done, onToggleDone, open, onToggleOpen, children }) {
+  const [burst, setBurst] = useState(false);
 
-// ── Comment task content ──────────────────────────────────────────────────────
-function CommentTaskContent({ onSend, onDone }) {
-  const [value, setValue] = useState('');
-
-  const handleSend = () => {
-    if (!value.trim()) return;
-    onSend(value.trim());
-    onDone();
+  const handleCheck = (e) => {
+    e.stopPropagation();
+    if (!done) { setBurst(true); setTimeout(() => setBurst(false), 800); }
+    onToggleDone();
   };
 
   return (
-    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-      <TextField
-        fullWidth
-        size="small"
-        placeholder="Leave a note for your team…"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSend(); } }}
-        sx={{
-          '& .MuiOutlinedInput-root': {
-            borderRadius: '8px', fontSize: 13,
-            '& fieldset': { borderColor: 'rgba(0,0,0,0.12)' },
-          },
-        }}
-      />
-      <IconButton
-        onClick={handleSend}
-        disabled={!value.trim()}
-        size="small"
-        sx={{
-          bgcolor: '#000', color: '#fff', borderRadius: '8px', p: 1, flexShrink: 0,
-          '&:hover': { bgcolor: '#222' },
-          '&.Mui-disabled': { bgcolor: '#eee', color: '#bbb' },
-        }}
+    <Box sx={{ position: 'relative', bgcolor: done ? 'rgba(0,0,0,0.015)' : 'transparent' }}>
+      {burst && <DoneBurst active />}
+
+      {/* Header — click row to expand, click circle to mark done */}
+      <Box
+        onClick={onToggleOpen}
+        sx={{ px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer', userSelect: 'none', '&:hover': { bgcolor: 'rgba(0,0,0,0.02)' } }}
       >
-        <Send sx={{ fontSize: 16 }} />
-      </IconButton>
+        <ExpandMore
+          sx={{ fontSize: 18, color: '#ccc', flexShrink: 0, transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
+        />
+        <Typography sx={{ fontSize: 13, fontWeight: 600, flexGrow: 1, color: done ? '#bbb' : '#1A1A2E', textDecoration: done ? 'line-through' : 'none' }}>
+          {title}
+        </Typography>
+        {/* Done circle — separate click handler */}
+        <Box
+          onClick={handleCheck}
+          sx={{
+            width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'all 0.2s',
+            ...(done ? { bgcolor: '#4CAF50' } : { border: '1.5px solid rgba(0,0,0,0.15)', '&:hover': { borderColor: '#4CAF50' } }),
+          }}
+        >
+          {done && <Check sx={{ fontSize: 12, color: '#fff' }} />}
+        </Box>
+      </Box>
+
+      <Collapse in={open && !done}>
+        <Box sx={{ px: 2, pb: 2, position: 'relative', zIndex: 1 }}>
+          {children}
+        </Box>
+      </Collapse>
     </Box>
+  );
+}
+
+// ── Nav pill ──────────────────────────────────────────────────────────────────
+function NavPill({ tab, setTab, commentCount }) {
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', bgcolor: 'rgba(0,0,0,0.05)', borderRadius: '100px', p: 0.4, width: '100%' }}>
+      {['Tasks', 'Comments'].map((t) => (
+        <Box key={t} onClick={() => setTab(t)} sx={{
+          flex: 1, py: 0.5, borderRadius: '100px',
+          fontSize: 12, fontWeight: tab === t ? 700 : 500,
+          color: tab === t ? '#1A1A2E' : '#999',
+          bgcolor: tab === t ? '#fff' : 'transparent',
+          boxShadow: tab === t ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
+          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.6,
+          transition: 'all 0.15s', userSelect: 'none',
+        }}>
+          {t}
+          {t === 'Comments' && <Box component="span" sx={{ color: tab === t ? '#aaa' : '#bbb', fontWeight: 400 }}>· {commentCount}</Box>}
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
+// ── Comments view ─────────────────────────────────────────────────────────────
+function CommentsView({ comments, onSend, inputRef }) {
+  const [value, setValue] = useState('');
+  const handleSend = () => { if (!value.trim()) return; onSend(value.trim()); setValue(''); };
+  return (
+    <>
+      <Box sx={{ flex: 1, overflowY: 'auto', p: 2, display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+        {comments.map((c) => (
+          <Box key={c.id} sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+            <Box sx={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, bgcolor: c.author.color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700 }}>
+              {c.author.initials}
+            </Box>
+            <Box sx={{ flex: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75 }}>
+                <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#1A1A2E' }}>{c.author.name}</Typography>
+                <Typography sx={{ fontSize: 10, color: '#bbb' }}>{c.time}</Typography>
+              </Box>
+              <Typography sx={{ fontSize: 12, color: '#555', mt: 0.25, lineHeight: 1.5 }}>{c.message}</Typography>
+            </Box>
+          </Box>
+        ))}
+      </Box>
+      <Box sx={{ p: 2, borderTop: '1px solid rgba(0,0,0,0.06)', display: 'flex', gap: 1 }}>
+        <TextField inputRef={inputRef} fullWidth size="small" placeholder="Leave a note…" value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSend(); } }}
+          sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px', fontSize: 13, '& fieldset': { borderColor: 'rgba(0,0,0,0.12)' } } }}
+        />
+        <IconButton onClick={handleSend} disabled={!value.trim()} size="small" sx={{ bgcolor: '#000', color: '#fff', borderRadius: '8px', p: 1, flexShrink: 0, '&:hover': { bgcolor: '#222' }, '&.Mui-disabled': { bgcolor: '#eee', color: '#bbb' } }}>
+          <Send sx={{ fontSize: 16 }} />
+        </IconButton>
+      </Box>
+    </>
   );
 }
 
 // ── Main panel ────────────────────────────────────────────────────────────────
 export default function TasksPanel({ hasIssues, onAnalyze, onSend }) {
   const [loading, setLoading] = useState(true);
-  const [issuesDone, setIssuesDone] = useState(false);
-  const [commentDone, setCommentDone] = useState(false);
+  const [tab, setTab] = useState('Tasks');
+  const [done, setDone] = useState([false, false, false]);
+  const [openTask, setOpenTask] = useState(0); // index of expanded task
+  const [analyzed, setAnalyzed] = useState(false);
+  const [subDone, setSubDone] = useState([false, false, false]);
   const [validated, setValidated] = useState(false);
+  const [comments, setComments] = useState(initialComments);
+  const commentInputRef = useRef(null);
 
   useEffect(() => {
     const t = setTimeout(() => setLoading(false), 2500);
     return () => clearTimeout(t);
   }, []);
 
-  const totalTasks = hasIssues ? 2 : 1;
-  const doneTasks = (hasIssues ? (issuesDone ? 1 : 0) : 0) + (commentDone ? 1 : 0);
+  // Auto-open first non-done task
+  useEffect(() => {
+    const first = done.findIndex((d) => !d);
+    if (first !== -1) setOpenTask(first);
+  }, [done]);
+
+  const toggleDone = (i) => setDone((prev) => { const n = [...prev]; n[i] = !n[i]; return n; });
+  const toggleSub = (i) => setSubDone((prev) => { const n = [...prev]; n[i] = !n[i]; return n; });
+
+  const goToComments = () => {
+    setTab('Comments');
+    setTimeout(() => commentInputRef.current?.focus(), 50);
+  };
+
+  const handleSendComment = (msg) => {
+    onSend(msg);
+    setComments((prev) => [...prev, {
+      id: `c-${Date.now()}`,
+      author: { name: 'Sarah Miller', initials: 'SM', color: '#E91E8C', role: 'Manager' },
+      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      message: msg, isAI: false,
+    }]);
+  };
+
+  const SUB_TASKS = [
+    '4 payments not notified to POS',
+    'PDQ payment not notified',
+    '2 manual manipulations',
+  ];
 
   return (
-    <Box sx={{
-      width: 300,
-      flexShrink: 0,
-      borderRadius: '16px',
-      border: '1px solid rgba(0,0,0,0.09)',
-      display: 'flex',
-      flexDirection: 'column',
-      overflow: 'hidden',
-      background: [
-        'radial-gradient(ellipse at 0% 0%, rgba(255,23,233,0.14) 0%, transparent 28%)',
-        'radial-gradient(ellipse at 70% 0%, rgba(255,150,190,0.08) 0%, transparent 22%)',
-        'radial-gradient(ellipse at 100% 0%, rgba(160,190,255,0.09) 0%, transparent 24%)',
-        'radial-gradient(ellipse at 30% 0%, rgba(255,180,100,0.06) 0%, transparent 18%)',
-        '#ffffff',
-      ].join(', '),
-    }}>
+    <Box sx={{ flex: 1, bgcolor: '#fff', borderRadius: '16px', border: '1px solid rgba(0,0,0,0.09)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Header */}
-      <Box sx={{ px: 2, pt: 2.5, pb: 2, borderBottom: '1px solid rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Box>
-          <Typography sx={{ fontSize: 15, fontWeight: 700, color: '#1A1A2E' }}>Today's tasks</Typography>
-          <Typography sx={{ fontSize: 11, color: '#aaa', mt: 0.25 }}>
-            {loading ? 'Analyzing…' : validated ? 'Day validated' : `${doneTasks}/${totalTasks} completed`}
-          </Typography>
-        </Box>
-        <Typography sx={{ fontSize: 10, color: '#aaa', fontWeight: 500 }}>Powered by SundayAI</Typography>
+      <Box sx={{ px: 2.5, pt: 2.5, pb: 1.5 }}>
+        <Typography sx={{ fontSize: 22, fontWeight: 800, color: '#1A1A2E', letterSpacing: '-0.5px', mb: 1.5 }}>
+          My report
+        </Typography>
+        <NavPill tab={tab} setTab={setTab} commentCount={comments.length} />
       </Box>
 
-      {loading ? <LoadingState /> : (
+      {loading ? <LoadingState /> : tab === 'Comments' ? (
+        <CommentsView comments={comments} onSend={handleSendComment} inputRef={commentInputRef} />
+      ) : (
         <>
-          <Box sx={{ flex: 1, overflowY: 'auto', p: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-            {/* Task 1 — Issues (only when hasIssues) */}
-            {hasIssues && (
-              <TaskBlock number={1} title="Review issues" done={issuesDone}>
-                <IssuesTaskContent onAnalyze={() => { onAnalyze(); setIssuesDone(true); }} />
-              </TaskBlock>
-            )}
 
-            {/* Task 2 — Add comment (optional) */}
-            <TaskBlock number={hasIssues ? 2 : 1} title="Add a comment for your team" optional done={commentDone}>
-              <CommentTaskContent onSend={onSend} onDone={() => setCommentDone(true)} />
+          <Box sx={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+
+            {/* Task 1 — Review the tender lines */}
+            <TaskBlock number={1} title="Review the tender lines" done={done[0]} onToggleDone={() => toggleDone(0)} open={openTask === 0} onToggleOpen={() => setOpenTask(openTask === 0 ? -1 : 0)}>
+              <Typography sx={{ fontSize: 12, color: '#666', lineHeight: 1.6 }}>
+                Check each tender line and make sure declared amounts match POS totals.
+              </Typography>
+            </TaskBlock>
+
+            <Divider />
+
+            {/* Task 2 — Analyze discrepancies */}
+            <TaskBlock number={2} title="Analyze discrepancies" done={done[1]} onToggleDone={() => toggleDone(1)} open={openTask === 1} onToggleOpen={() => setOpenTask(openTask === 1 ? -1 : 1)}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                <Typography sx={{ fontSize: 12, color: '#666', lineHeight: 1.6 }}>
+                  Run an AI analysis to identify the root causes of payment discrepancies.
+                </Typography>
+                {!analyzed ? (
+                  <Box onClick={(e) => { e.stopPropagation(); onAnalyze(); setTimeout(() => { setAnalyzed(true); const d = [...done]; d[1] = true; setDone(d); }, 2800); }} sx={{
+                    display: 'inline-flex', alignItems: 'center', gap: 0.75,
+                    px: 1.5, py: 0.6, bgcolor: '#1A1A2E', color: '#fff',
+                    borderRadius: '100px', fontSize: 12, fontWeight: 600,
+                    cursor: 'pointer', width: 'fit-content',
+                    '&:hover': { bgcolor: '#2d2d4e' },
+                  }}>
+                    <AutoFixHigh sx={{ fontSize: 13 }} />
+                    Run analysis
+                  </Box>
+                ) : (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                    <Check sx={{ fontSize: 13, color: '#4CAF50' }} />
+                    <Typography sx={{ fontSize: 12, color: '#4CAF50', fontWeight: 600 }}>Analysis complete</Typography>
+                  </Box>
+                )}
+                <Typography sx={{ fontSize: 10, color: '#ccc' }}>Powered by AI</Typography>
+              </Box>
+            </TaskBlock>
+
+            {/* Sub-tasks 3,4,5 — appear after analysis */}
+            {analyzed && SUB_TASKS.map((label, i) => (
+              <React.Fragment key={i}>
+                <Divider />
+                <TaskBlock number={3 + i} title={label} done={subDone[i]} onToggleDone={() => toggleSub(i)} open={openTask === 10 + i} onToggleOpen={() => setOpenTask(openTask === 10 + i ? -1 : 10 + i)}>
+                  <Typography sx={{ fontSize: 12, color: '#666', lineHeight: 1.6 }}>
+                    Review and resolve this discrepancy before validating the day.
+                  </Typography>
+                </TaskBlock>
+              </React.Fragment>
+            ))}
+
+            <Divider />
+
+            {/* Last task — Add a comment */}
+            <TaskBlock number={analyzed ? 6 : 3} title="Add a comment for your team" done={done[2]} onToggleDone={() => toggleDone(2)} open={openTask === 2} onToggleOpen={() => setOpenTask(openTask === 2 ? -1 : 2)}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                <Typography sx={{ fontSize: 12, color: '#666', lineHeight: 1.6 }}>
+                  Leave a note for your team about today's reconciliation.
+                </Typography>
+                <Box onClick={(e) => { e.stopPropagation(); goToComments(); }} sx={{
+                  display: 'inline-flex', alignItems: 'center',
+                  px: 1.5, py: 0.6, border: '1.5px solid rgba(0,0,0,0.15)', color: '#1A1A2E',
+                  borderRadius: '100px', fontSize: 12, fontWeight: 600,
+                  cursor: 'pointer', width: 'fit-content',
+                  '&:hover': { borderColor: '#1A1A2E', bgcolor: 'rgba(0,0,0,0.02)' },
+                }}>
+                  Add a comment
+                </Box>
+              </Box>
             </TaskBlock>
           </Box>
 
           {/* Validate button */}
           <Box sx={{ p: 2, borderTop: '1px solid rgba(0,0,0,0.06)' }}>
-            <Box
-              onClick={() => !validated && setValidated(true)}
-              sx={{
-                width: '100%',
-                py: 1.25,
-                borderRadius: '100px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 1,
-                bgcolor: validated ? 'rgba(76,175,80,0.1)' : '#1A1A2E',
-                color: validated ? '#4CAF50' : '#fff',
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: validated ? 'default' : 'pointer',
-                transition: 'all 0.2s',
-                '&:hover': !validated ? { bgcolor: '#2d2d4e' } : {},
-              }}
-            >
-              {validated && <CheckCircle sx={{ fontSize: 16 }} />}
+            <Box onClick={() => !validated && setValidated(true)} sx={{
+              width: '100%', py: 1.25, borderRadius: '100px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1,
+              bgcolor: validated ? '#1A1A2E' : '#1A1A2E',
+              color: '#fff',
+              fontSize: 13, fontWeight: 700,
+              cursor: validated ? 'default' : 'pointer',
+              transition: 'all 0.2s',
+              '&:hover': !validated ? { bgcolor: '#2d2d4e' } : {},
+            }}>
+              {validated && <Check sx={{ fontSize: 16 }} />}
               {validated ? 'Day validated' : 'Validate the day'}
             </Box>
           </Box>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Typography } from '@mui/material';
 
-export default function DayCard({ day, selected, onClick, unified = false }) {
+export default function DayCard({ day, selected, onClick, unified = false, isFirst = false }) {
   const isWarning = day.status === 'warning' || day.status === 'error';
 
   return (
@@ -16,7 +16,7 @@ export default function DayCard({ day, selected, onClick, unified = false }) {
         alignItems: 'flex-start',
         gap: 0.25,
         cursor: 'pointer',
-        borderRadius: '16px',
+        borderRadius: (unified && isFirst) ? '0 16px 16px 0' : '16px',
         border: unified ? 'none' : (selected ? 'none' : '1.5px solid rgba(0,0,0,0.09)'),
         bgcolor: selected ? 'rgba(0,0,0,0.06)' : 'transparent',
         transition: 'all 0.15s',

@@ -221,7 +221,7 @@ const ARTICLES = [
   { title: 'End-of-Day Checklist', description: 'Everything you need to close the day correctly' },
 ];
 
-export default function ReportModal({ open, onClose }) {
+export default function ReportModal({ open, onClose, issues: issuesProp }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -287,7 +287,7 @@ export default function ReportModal({ open, onClose }) {
               </Box>
             </Box>
             <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.25 }}>
-              {ISSUES.map((issue, i) => (
+              {(issuesProp || ISSUES).map((issue, i) => (
                 <IssueBlock key={i} {...issue} />
               ))}
             </Box>

@@ -1,16 +1,23 @@
 import React, { useState } from 'react';
 import {
   Box, Typography, Button, Select, MenuItem, IconButton,
-  FormControl, InputLabel, Tooltip,
+  FormControl, InputLabel, Tooltip, CircularProgress,
 } from '@mui/material';
-import { Settings, FileDownload } from '@mui/icons-material';
+import { Settings, FileDownload, Check } from '@mui/icons-material';
 import { days as initialDays, tenders as initialTenders, initialComments } from '../../data/dummy';
 import DateStrip from './DateStrip';
 import TenderTable from './TenderTable';
 import DatePickerModal from '../modals/DatePickerModal';
 import AddTenderModal from '../modals/AddTenderModal';
-import SundayAIModal from '../modals/SundayAIModal';
+import ReportModal from '../modals/ReportModal';
 import TasksPanel from '../tasks/TasksPanel';
+import { CreditCardOff, SyncProblem, EditOff } from '@mui/icons-material';
+
+const ANALYSIS_ISSUES = [
+  { icon: <CreditCardOff />, count: '4', label: 'payments not notified to POS', amount: '€312.50' },
+  { icon: <CreditCardOff />, count: '1', label: 'PDQ payment not notified', amount: '€95.20' },
+  { icon: <EditOff />, count: '2', label: 'manual manipulations', amount: null },
+];
 
 export default function DailyReportsPageTasks() {
   const [days] = useState(initialDays);
@@ -22,7 +29,13 @@ export default function DailyReportsPageTasks() {
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [addTenderOpen, setAddTenderOpen] = useState(false);
   const [editTender, setEditTender] = useState(null);
-  const [sundayAIOpen, setSundayAIOpen] = useState(false);
+  const [analysisState, setAnalysisState] = useState(null); // null | 'running' | 'done'
+  const [reportOpen, setReportOpen] = useState(false);
+
+  const handleRunAnalysis = () => {
+    setAnalysisState('running');
+    setTimeout(() => { setAnalysisState('done'); setReportOpen(true); }, 2800);
+  };
 
   const selectedDay = days.find((d) => d.id === selectedDayId);
   const selectedDayHasIssues = selectedDay?.status === 'warning';
@@ -112,18 +125,8 @@ export default function DailyReportsPageTasks() {
 
       {/* Two-column layout */}
       <Box sx={{ flex: 1, display: 'flex', gap: 1 }}>
-        {/* Tender card */}
-        <Box
-          sx={{
-            flex: 1,
-            bgcolor: '#fff',
-            borderRadius: '16px',
-            border: '1px solid rgba(0,0,0,0.09)',
-            p: 2,
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
+        {/* Tender card — 2/3 */}
+        <Box sx={{ flex: 2, bgcolor: '#fff', borderRadius: '16px', border: '1px solid rgba(0,0,0,0.09)', p: 2, display: 'flex', flexDirection: 'column' }}>
           <Box sx={{ mx: -2 }}>
             <TenderTable
               tenders={tenders}
@@ -134,10 +137,10 @@ export default function DailyReportsPageTasks() {
           </Box>
         </Box>
 
-        {/* Tasks panel */}
+        {/* Tasks panel — 1/3 */}
         <TasksPanel
           hasIssues={selectedDayHasIssues}
-          onAnalyze={() => setSundayAIOpen(true)}
+          onAnalyze={handleRunAnalysis}
           onSend={handleSendComment}
         />
       </Box>
@@ -161,12 +164,50 @@ export default function DailyReportsPageTasks() {
         onSubmit={handleSaveEditTender}
         initialValues={editTender}
       />
-      <SundayAIModal
-        open={sundayAIOpen}
-        onClose={() => setSundayAIOpen(false)}
-        onSolved={handleAISolved}
-        onUndo={(id) => setComments((prev) => prev.filter((c) => c.id !== id))}
-      />
+      <ReportModal open={reportOpen} onClose={() => setReportOpen(false)} issues={ANALYSIS_ISSUES} />
+
+      {/* Floating analysis feedback — top right */}
+      {analysisState && (
+        <Box sx={{
+          position: 'fixed', top: 24, right: 24,
+          zIndex: 1500,
+          bgcolor: '#1A1A2E', color: '#fff',
+          borderRadius: '16px',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+          px: 2.5, py: 2,
+          minWidth: 240,
+          animation: 'fadeDown 0.25s ease-out',
+          '@keyframes fadeDown': {
+            from: { opacity: 0, transform: 'translateY(-8px)' },
+            to: { opacity: 1, transform: 'translateY(0)' },
+          },
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+              {analysisState === 'running'
+                ? <CircularProgress size={15} thickness={4} sx={{ color: '#fff', flexShrink: 0 }} />
+                : <Check sx={{ fontSize: 16, color: '#4CAF50', flexShrink: 0 }} />
+              }
+              <Box>
+                <Typography sx={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3 }}>
+                  {analysisState === 'running' ? 'Running analysis…' : 'Analysis complete'}
+                </Typography>
+                <Typography
+                  onClick={analysisState === 'done' ? () => setReportOpen(true) : undefined}
+                  sx={{ fontSize: 11, color: analysisState === 'done' ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.5)', mt: 0.4, cursor: analysisState === 'done' ? 'pointer' : 'default', textDecoration: analysisState === 'done' ? 'underline' : 'none' }}
+                >
+                  {analysisState === 'running' ? 'We will let you know when is ready' : 'View report →'}
+                </Typography>
+              </Box>
+            </Box>
+            {analysisState === 'done' && (
+              <Box onClick={() => setAnalysisState(null)} sx={{ cursor: 'pointer', color: 'rgba(255,255,255,0.4)', '&:hover': { color: '#fff' }, fontSize: 18, lineHeight: 1, mt: 0.25 }}>
+                ×
+              </Box>
+            )}
+          </Box>
+        </Box>
+      )}
     </Box>
   );
 }
