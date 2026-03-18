@@ -8,7 +8,7 @@ export default function DeltaCell({ delta }) {
   }
   return (
     <Chip
-      label={`${delta > 0 ? '+' : ''}$${Math.abs(delta).toFixed(2)}`}
+      label={`$${Math.abs(delta).toFixed(2)}`}
       size="small"
       sx={{
         bgcolor: 'rgba(251,146,60,0.13)',

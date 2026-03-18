@@ -65,6 +65,14 @@ export default function DailyReportsPageTasks() {
     setEditTender(null);
   };
 
+  const handleSameAsPOS = () => {
+    tenders.forEach((t) => {
+      if (t.id !== 'sunday-qr' && t.id !== 'sunday-pdq') {
+        handleUpdateTender(t.id, t.totalInToast);
+      }
+    });
+  };
+
   const handleAISolved = (aiComment) => {
     setComments((prev) => [...prev, aiComment]);
   };
@@ -142,6 +150,8 @@ export default function DailyReportsPageTasks() {
           hasIssues={selectedDayHasIssues}
           onAnalyze={handleRunAnalysis}
           onSend={handleSendComment}
+          onSameAsPOS={handleSameAsPOS}
+          tenders={tenders}
         />
       </Box>
 
@@ -171,7 +181,7 @@ export default function DailyReportsPageTasks() {
         <Box sx={{
           position: 'fixed', top: 24, right: 24,
           zIndex: 1500,
-          bgcolor: '#1A1A2E', color: '#fff',
+          bgcolor: '#000', color: '#fff',
           borderRadius: '16px',
           boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
           px: 2.5, py: 2,
@@ -192,12 +202,21 @@ export default function DailyReportsPageTasks() {
                 <Typography sx={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3 }}>
                   {analysisState === 'running' ? 'Running analysis…' : 'Analysis complete'}
                 </Typography>
-                <Typography
-                  onClick={analysisState === 'done' ? () => setReportOpen(true) : undefined}
-                  sx={{ fontSize: 11, color: analysisState === 'done' ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.5)', mt: 0.4, cursor: analysisState === 'done' ? 'pointer' : 'default', textDecoration: analysisState === 'done' ? 'underline' : 'none' }}
-                >
-                  {analysisState === 'running' ? 'We will let you know when is ready' : 'View report →'}
-                </Typography>
+                {analysisState === 'running' ? (
+                  <Typography sx={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', mt: 0.4 }}>
+                    We will let you know when is ready
+                  </Typography>
+                ) : (
+                  <Box onClick={() => setReportOpen(true)} sx={{
+                    mt: 0.75, display: 'inline-flex', alignItems: 'center',
+                    px: 1.25, py: 0.4, borderRadius: '100px',
+                    bgcolor: 'rgba(255,255,255,0.12)', color: '#fff',
+                    fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                    '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' },
+                  }}>
+                    View report →
+                  </Box>
+                )}
               </Box>
             </Box>
             {analysisState === 'done' && (

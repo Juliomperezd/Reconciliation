@@ -106,8 +106,12 @@ function SubTask({ label, done, onToggle }) {
 }
 
 // ── Task block ────────────────────────────────────────────────────────────────
-function TaskBlock({ number, title, done, onToggleDone, open, onToggleOpen, children }) {
+function TaskBlock({ number, title, done, onToggleDone, open, onToggleOpen, delta, fireBurst, showDoneCheck, children }) {
   const [burst, setBurst] = useState(false);
+
+  useEffect(() => {
+    if (fireBurst) { setBurst(true); setTimeout(() => setBurst(false), 800); }
+  }, [fireBurst]);
 
   const handleCheck = (e) => {
     e.stopPropagation();
@@ -130,6 +134,10 @@ function TaskBlock({ number, title, done, onToggleDone, open, onToggleOpen, chil
         <Typography sx={{ fontSize: 13, fontWeight: 600, flexGrow: 1, color: done ? '#bbb' : '#1A1A2E', textDecoration: done ? 'line-through' : 'none' }}>
           {title}
         </Typography>
+        {showDoneCheck
+          ? <Check sx={{ fontSize: 15, color: '#4CAF50', flexShrink: 0 }} />
+          : <DeltaBadge delta={delta} />
+        }
         {/* Done circle — separate click handler */}
         <Box
           onClick={handleCheck}
@@ -145,7 +153,7 @@ function TaskBlock({ number, title, done, onToggleDone, open, onToggleOpen, chil
       </Box>
 
       <Collapse in={open && !done}>
-        <Box sx={{ px: 2, pb: 2, position: 'relative', zIndex: 1 }}>
+        <Box sx={{ pl: '42px', pr: 2, pb: 2, position: 'relative', zIndex: 1 }}>
           {children}
         </Box>
       </Collapse>
@@ -212,7 +220,20 @@ function CommentsView({ comments, onSend, inputRef }) {
 }
 
 // ── Main panel ────────────────────────────────────────────────────────────────
-export default function TasksPanel({ hasIssues, onAnalyze, onSend }) {
+function DeltaBadge({ delta }) {
+  if (delta === 0 || delta == null) return null;
+  return (
+    <Box sx={{
+      px: 1, py: 0.2, borderRadius: '100px',
+      bgcolor: 'rgba(251,146,60,0.13)', color: '#9A3412',
+      fontSize: 11, fontWeight: 700, flexShrink: 0, lineHeight: 1.5,
+    }}>
+      €{Math.abs(delta).toFixed(2)}
+    </Box>
+  );
+}
+
+export default function TasksPanel({ hasIssues, onAnalyze, onSend, onSameAsPOS, tenders = [] }) {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('Tasks');
   const [done, setDone] = useState([false, false, false]);
@@ -220,6 +241,7 @@ export default function TasksPanel({ hasIssues, onAnalyze, onSend }) {
   const [analyzed, setAnalyzed] = useState(false);
   const [subDone, setSubDone] = useState([false, false, false]);
   const [validated, setValidated] = useState(false);
+  const [sameAsPOSDone, setSameAsPOSDone] = useState(false);
   const [comments, setComments] = useState(initialComments);
   const commentInputRef = useRef(null);
 
@@ -258,6 +280,11 @@ export default function TasksPanel({ hasIssues, onAnalyze, onSend }) {
     '2 manual manipulations',
   ];
 
+  const totalDelta = tenders.reduce((sum, t) => sum + (t.delta || 0), 0);
+  const sundayQrDelta = tenders.find((t) => t.id === 'sunday-qr')?.delta ?? 0;
+  const sundayPdqDelta = tenders.find((t) => t.id === 'sunday-pdq')?.delta ?? 0;
+  const subDeltas = [sundayQrDelta, sundayPdqDelta, totalDelta - sundayQrDelta - sundayPdqDelta];
+
   return (
     <Box sx={{ flex: 1, bgcolor: '#fff', borderRadius: '16px', border: '1px solid rgba(0,0,0,0.09)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Header */}
@@ -276,16 +303,34 @@ export default function TasksPanel({ hasIssues, onAnalyze, onSend }) {
           <Box sx={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
 
             {/* Task 1 — Review the tender lines */}
-            <TaskBlock number={1} title="Review the tender lines" done={done[0]} onToggleDone={() => toggleDone(0)} open={openTask === 0} onToggleOpen={() => setOpenTask(openTask === 0 ? -1 : 0)}>
-              <Typography sx={{ fontSize: 12, color: '#666', lineHeight: 1.6 }}>
-                Check each tender line and make sure declared amounts match POS totals.
-              </Typography>
+            <TaskBlock number={1} title="Review the non-sunday tenders" done={done[0]} onToggleDone={() => toggleDone(0)} open={openTask === 0} onToggleOpen={() => setOpenTask(openTask === 0 ? -1 : 0)} delta={sameAsPOSDone ? 0 : totalDelta} fireBurst={sameAsPOSDone} showDoneCheck={sameAsPOSDone}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                <Typography sx={{ fontSize: 12, color: '#666', lineHeight: 1.6 }}>
+                  Check each tender line and make sure declared amounts match POS totals.
+                </Typography>
+                {sameAsPOSDone ? (
+                  <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+                    <Check sx={{ fontSize: 13, color: '#4CAF50' }} />
+                    <Typography sx={{ fontSize: 12, color: '#4CAF50', fontWeight: 600 }}>Declared same as POS</Typography>
+                  </Box>
+                ) : (
+                  <Box onClick={(e) => { e.stopPropagation(); onSameAsPOS?.(); setSameAsPOSDone(true); toggleDone(0); }} sx={{
+                    display: 'inline-flex', alignItems: 'center',
+                    px: 1.5, py: 0.6, border: '1.5px solid rgba(0,0,0,0.15)', color: '#1A1A2E',
+                    borderRadius: '100px', fontSize: 12, fontWeight: 600,
+                    cursor: 'pointer', width: 'fit-content', bgcolor: '#fff',
+                    '&:hover': { borderColor: '#1A1A2E', bgcolor: 'rgba(0,0,0,0.02)' },
+                  }}>
+                    Declare same as POS
+                  </Box>
+                )}
+              </Box>
             </TaskBlock>
 
             <Divider />
 
             {/* Task 2 — Analyze discrepancies */}
-            <TaskBlock number={2} title="Analyze discrepancies" done={done[1]} onToggleDone={() => toggleDone(1)} open={openTask === 1} onToggleOpen={() => setOpenTask(openTask === 1 ? -1 : 1)}>
+            <TaskBlock number={2} title="Analyze sunday discrepancies" done={done[1]} onToggleDone={() => toggleDone(1)} open={openTask === 1} onToggleOpen={() => setOpenTask(openTask === 1 ? -1 : 1)}>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
                 <Typography sx={{ fontSize: 12, color: '#666', lineHeight: 1.6 }}>
                   Run an AI analysis to identify the root causes of payment discrepancies.
@@ -315,7 +360,7 @@ export default function TasksPanel({ hasIssues, onAnalyze, onSend }) {
             {analyzed && SUB_TASKS.map((label, i) => (
               <React.Fragment key={i}>
                 <Divider />
-                <TaskBlock number={3 + i} title={label} done={subDone[i]} onToggleDone={() => toggleSub(i)} open={openTask === 10 + i} onToggleOpen={() => setOpenTask(openTask === 10 + i ? -1 : 10 + i)}>
+                <TaskBlock number={3 + i} title={label} done={subDone[i]} onToggleDone={() => toggleSub(i)} open={openTask === 10 + i} onToggleOpen={() => setOpenTask(openTask === 10 + i ? -1 : 10 + i)} delta={subDeltas[i]}>
                   <Typography sx={{ fontSize: 12, color: '#666', lineHeight: 1.6 }}>
                     Review and resolve this discrepancy before validating the day.
                   </Typography>

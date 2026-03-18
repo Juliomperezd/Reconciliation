@@ -286,7 +286,7 @@ export default function ReportModal({ open, onClose, issues: issuesProp }) {
                 {ISSUES.length}
               </Box>
             </Box>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.25 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
               {(issuesProp || ISSUES).map((issue, i) => (
                 <IssueBlock key={i} {...issue} />
               ))}
