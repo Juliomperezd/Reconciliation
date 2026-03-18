@@ -6,6 +6,7 @@ import { PathProvider, useCurrentPath } from './contexts/PathContext';
 import AppLayout from './components/layout/AppLayout';
 import DailyReportsPage from './components/daily-reports/DailyReportsPage';
 import DailyReportsPageSidebar from './components/daily-reports/DailyReportsPageSidebar';
+import DailyReportsPageTasks from './components/daily-reports/DailyReportsPageTasks';
 import OperationsPage from './components/operations/OperationsPage';
 import TenderDetailPage from './components/daily-reports/TenderDetailPage';
 import GalleryPage from './components/gallery/GalleryPage';
@@ -16,6 +17,7 @@ function PathEntry({ pathId }) {
   const { setCurrentPath } = useCurrentPath();
   useEffect(() => { setCurrentPath(pathId); }, [pathId]);
   if (pathId === 'path2') return <DailyReportsPageSidebar />;
+  if (pathId === 'path4') return <DailyReportsPageTasks />;
   return <DailyReportsPage />;
 }
 
@@ -33,7 +35,7 @@ export default function App() {
             <Route path="/gallery" element={<GalleryPage />} />
 
             {/* Paths */}
-            {['path1', 'path2', 'path3'].map((pathId) => (
+            {['path1', 'path2', 'path3', 'path4'].map((pathId) => (
               <Route
                 key={pathId}
                 path={`/${pathId}/*`}

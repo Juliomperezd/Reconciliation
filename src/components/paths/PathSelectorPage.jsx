@@ -23,6 +23,12 @@ const PATHS = [
     label: 'Report',
     description: 'Variante C del prototipo',
   },
+  {
+    id: 'path4',
+    number: '04',
+    label: 'Tasks',
+    description: 'Variante D del prototipo',
+  },
 ];
 
 export default function PathSelectorPage() {

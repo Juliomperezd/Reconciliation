@@ -7,6 +7,7 @@ const PATHS = [
   { id: 'path1', label: 'Dialog', full: 'Dialog model' },
   { id: 'path2', label: 'Sidebar', full: 'Sidebar' },
   { id: 'path3', label: 'Report', full: 'Report' },
+  { id: 'path4', label: 'Tasks', full: 'Tasks' },
 ];
 
 export default function PathNavigator() {

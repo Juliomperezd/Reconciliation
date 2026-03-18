@@ -7,32 +7,23 @@ import { Settings, FileDownload } from '@mui/icons-material';
 import { days as initialDays, tenders as initialTenders, initialComments } from '../../data/dummy';
 import DateStrip from './DateStrip';
 import TenderTable from './TenderTable';
-import DiscrepancyAlert from './DiscrepancyAlert';
-import FloatingActionBar from '../layout/FloatingActionBar';
 import DatePickerModal from '../modals/DatePickerModal';
 import AddTenderModal from '../modals/AddTenderModal';
 import SundayAIModal from '../modals/SundayAIModal';
-import ReportModal from '../modals/ReportModal';
-import CommentsPanel from '../panels/CommentsPanel';
-import HelpPanel from '../panels/HelpPanel';
+import TasksPanel from '../tasks/TasksPanel';
 
-export default function DailyReportsPage() {
+export default function DailyReportsPageTasks() {
   const [days] = useState(initialDays);
   const [selectedDayId, setSelectedDayId] = useState('2026-03-10');
   const [tenders, setTenders] = useState(initialTenders);
   const [viewBy, setViewBy] = useState('Tender');
   const [comments, setComments] = useState(initialComments);
-  const [validated, setValidated] = useState(false);
 
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [addTenderOpen, setAddTenderOpen] = useState(false);
-  const [editTender, setEditTender] = useState(null); // tender object being edited
+  const [editTender, setEditTender] = useState(null);
   const [sundayAIOpen, setSundayAIOpen] = useState(false);
-  const [reportOpen, setReportOpen] = useState(false);
-  const [commentsOpen, setCommentsOpen] = useState(false);
-  const [helpOpen, setHelpOpen] = useState(false);
 
-  const hasDiscrepancy = tenders.some((t) => t.totalInToast !== t.totalDeclared);
   const selectedDay = days.find((d) => d.id === selectedDayId);
   const selectedDayHasIssues = selectedDay?.status === 'warning';
 
@@ -63,7 +54,6 @@ export default function DailyReportsPage() {
 
   const handleAISolved = (aiComment) => {
     setComments((prev) => [...prev, aiComment]);
-    setCommentsOpen(true);
   };
 
   const handleSendComment = (message) => {
@@ -77,8 +67,8 @@ export default function DailyReportsPage() {
   };
 
   return (
-    <Box sx={{ pt: 3.5, pr: 1, pb: 12, pl: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      {/* Page Header — outside the card, with 32px side padding */}
+    <Box sx={{ pt: 3.5, pr: 1, pb: 4, pl: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1.5, mb: 3, px: 3 }}>
         <Typography variant="h4" sx={{ flexGrow: 1, fontSize: { xs: 20, md: 26 } }}>
           Daily Reports
@@ -99,17 +89,16 @@ export default function DailyReportsPage() {
         </Button>
       </Box>
 
-      {/* Giant card — everything below the header */}
+      {/* DateStrip — single card full width */}
       <Box
         sx={{
-          flex: 1,
+          mx: 0,
+          mb: 1,
           bgcolor: '#fff',
           borderRadius: '16px',
           border: '1px solid rgba(0,0,0,0.09)',
-          p: 2,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2.5,
+          px: 0,
+          py: 0,
         }}
       >
         <DateStrip
@@ -117,34 +106,41 @@ export default function DailyReportsPage() {
           selectedDayId={selectedDayId}
           onSelectDay={setSelectedDayId}
           onSeeAll={() => setDatePickerOpen(true)}
+          unified
         />
-
-        {hasDiscrepancy && (
-          <DiscrepancyAlert
-            onSolveAI={() => setReportOpen(true)}
-            hasIssues={selectedDayHasIssues}
-          />
-        )}
-
-        <Box sx={{ mx: -2 }}>
-          <TenderTable
-            tenders={tenders}
-            onUpdateTender={handleUpdateTender}
-            onAddTender={() => setAddTenderOpen(true)}
-            onEditTender={(t) => setEditTender(t)}
-          />
-        </Box>
       </Box>
 
-      {/* Floating Action Bar */}
-      <FloatingActionBar
-        commentCount={comments.length}
-        onHelp={() => setHelpOpen(true)}
-        onComments={() => setCommentsOpen(true)}
-        onValidate={() => setValidated(true)}
-        validated={validated}
-        panelOpen={helpOpen || commentsOpen}
-      />
+      {/* Two-column layout */}
+      <Box sx={{ flex: 1, display: 'flex', gap: 1 }}>
+        {/* Tender card */}
+        <Box
+          sx={{
+            flex: 1,
+            bgcolor: '#fff',
+            borderRadius: '16px',
+            border: '1px solid rgba(0,0,0,0.09)',
+            p: 2,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <Box sx={{ mx: -2 }}>
+            <TenderTable
+              tenders={tenders}
+              onUpdateTender={handleUpdateTender}
+              onAddTender={() => setAddTenderOpen(true)}
+              onEditTender={(t) => setEditTender(t)}
+            />
+          </Box>
+        </Box>
+
+        {/* Tasks panel */}
+        <TasksPanel
+          hasIssues={selectedDayHasIssues}
+          onAnalyze={() => setSundayAIOpen(true)}
+          onSend={handleSendComment}
+        />
+      </Box>
 
       {/* Modals */}
       <DatePickerModal
@@ -170,19 +166,6 @@ export default function DailyReportsPage() {
         onClose={() => setSundayAIOpen(false)}
         onSolved={handleAISolved}
         onUndo={(id) => setComments((prev) => prev.filter((c) => c.id !== id))}
-      />
-      <ReportModal open={reportOpen} onClose={() => setReportOpen(false)} />
-
-      {/* Side Panels */}
-      <CommentsPanel
-        open={commentsOpen}
-        onClose={() => setCommentsOpen(false)}
-        comments={comments}
-        onSend={handleSendComment}
-      />
-      <HelpPanel
-        open={helpOpen}
-        onClose={() => setHelpOpen(false)}
       />
     </Box>
   );

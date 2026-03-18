@@ -68,7 +68,7 @@ export default function DiscrepancyAlert({ onSolveAI, hasIssues = false }) {
               '&:hover': { bgcolor: hasIssues ? '#7C2D12' : '#2d2d4e', boxShadow: 'none' },
             }}
           >
-            Analyze with sundayAI
+            Generate a sundayAI report
           </Button>
         </Box>
       </Box>
