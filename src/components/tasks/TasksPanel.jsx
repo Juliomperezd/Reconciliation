@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, Typography, TextField, IconButton, CircularProgress, Collapse, Divider } from '@mui/material';
-import { Send, ExpandMore, AutoFixHigh, Check } from '@mui/icons-material';
+import { Box, Typography, TextField, IconButton, CircularProgress, Collapse, Divider, circularProgressClasses } from '@mui/material';
+import { Send, ExpandMore, Check } from '@mui/icons-material';
 import { initialComments } from '../../data/dummy';
 
 // ── Confetti + Done toast ─────────────────────────────────────────────────────
@@ -106,7 +106,7 @@ function SubTask({ label, done, onToggle }) {
 }
 
 // ── Task block ────────────────────────────────────────────────────────────────
-function TaskBlock({ number, title, done, onToggleDone, open, onToggleOpen, delta, fireBurst, showDoneCheck, children }) {
+function TaskBlock({ number, title, subtitle, done, onToggleDone, open, onToggleOpen, delta, fireBurst, bgGradient, loading, children }) {
   const [burst, setBurst] = useState(false);
 
   useEffect(() => {
@@ -120,7 +120,7 @@ function TaskBlock({ number, title, done, onToggleDone, open, onToggleOpen, delt
   };
 
   return (
-    <Box sx={{ position: 'relative', bgcolor: done ? 'rgba(0,0,0,0.015)' : 'transparent' }}>
+    <Box sx={{ position: 'relative', ...(bgGradient ? { background: bgGradient } : { bgcolor: done ? 'rgba(0,0,0,0.015)' : 'transparent' }) }}>
       {burst && <DoneBurst active />}
 
       {/* Header — click row to expand, click circle to mark done */}
@@ -131,25 +131,29 @@ function TaskBlock({ number, title, done, onToggleDone, open, onToggleOpen, delt
         <ExpandMore
           sx={{ fontSize: 18, color: '#ccc', flexShrink: 0, transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
         />
-        <Typography sx={{ fontSize: 13, fontWeight: 600, flexGrow: 1, color: done ? '#bbb' : '#1A1A2E', textDecoration: done ? 'line-through' : 'none' }}>
-          {title}
-        </Typography>
-        {showDoneCheck
-          ? <Check sx={{ fontSize: 15, color: '#4CAF50', flexShrink: 0 }} />
-          : <DeltaBadge delta={delta} />
-        }
-        {/* Done circle — separate click handler */}
-        <Box
-          onClick={handleCheck}
-          sx={{
-            width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            transition: 'all 0.2s',
-            ...(done ? { bgcolor: '#4CAF50' } : { border: '1.5px solid rgba(0,0,0,0.15)', '&:hover': { borderColor: '#4CAF50' } }),
-          }}
-        >
-          {done && <Check sx={{ fontSize: 12, color: '#fff' }} />}
+        <Box sx={{ flexGrow: 1 }}>
+          <Typography sx={{ fontSize: 13, fontWeight: 600, color: done ? '#bbb' : '#1A1A2E', textDecoration: done ? 'line-through' : 'none', lineHeight: 1.3 }}>
+            {title}
+          </Typography>
+          {subtitle && <Box sx={{ mt: 0.25 }}>{subtitle}</Box>}
         </Box>
+        <DeltaBadge delta={delta} />
+        {/* Done circle — separate click handler */}
+        {loading ? (
+          <CircularProgress size={18} thickness={3} sx={{ flexShrink: 0, color: '#E91E8C' }} />
+        ) : (
+          <Box
+            onClick={handleCheck}
+            sx={{
+              width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'all 0.2s',
+              ...(done ? { bgcolor: '#4CAF50' } : { border: '1.5px solid rgba(0,0,0,0.15)', '&:hover': { borderColor: '#4CAF50' } }),
+            }}
+          >
+            {done && <Check sx={{ fontSize: 12, color: '#fff' }} />}
+          </Box>
+        )}
       </Box>
 
       <Collapse in={open && !done}>
@@ -239,6 +243,7 @@ export default function TasksPanel({ hasIssues, onAnalyze, onSend, onSameAsPOS, 
   const [done, setDone] = useState([false, false, false]);
   const [openTask, setOpenTask] = useState(0); // index of expanded task
   const [analyzed, setAnalyzed] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
   const [subDone, setSubDone] = useState([false, false, false]);
   const [validated, setValidated] = useState(false);
   const [sameAsPOSDone, setSameAsPOSDone] = useState(false);
@@ -280,10 +285,11 @@ export default function TasksPanel({ hasIssues, onAnalyze, onSend, onSameAsPOS, 
     '2 manual manipulations',
   ];
 
-  const totalDelta = tenders.reduce((sum, t) => sum + (t.delta || 0), 0);
   const sundayQrDelta = tenders.find((t) => t.id === 'sunday-qr')?.delta ?? 0;
   const sundayPdqDelta = tenders.find((t) => t.id === 'sunday-pdq')?.delta ?? 0;
-  const subDeltas = [sundayQrDelta, sundayPdqDelta, totalDelta - sundayQrDelta - sundayPdqDelta];
+  const nonSundayDelta = tenders.filter((t) => t.id !== 'sunday-qr' && t.id !== 'sunday-pdq').reduce((sum, t) => sum + (t.delta || 0), 0);
+  const sundayDelta = sundayQrDelta + sundayPdqDelta;
+  const subDeltas = [sundayQrDelta, sundayPdqDelta, nonSundayDelta];
 
   return (
     <Box sx={{ flex: 1, bgcolor: '#fff', borderRadius: '16px', border: '1px solid rgba(0,0,0,0.09)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -303,7 +309,7 @@ export default function TasksPanel({ hasIssues, onAnalyze, onSend, onSameAsPOS, 
           <Box sx={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
 
             {/* Task 1 — Review the tender lines */}
-            <TaskBlock number={1} title="Review the non-sunday tenders" done={done[0]} onToggleDone={() => toggleDone(0)} open={openTask === 0} onToggleOpen={() => setOpenTask(openTask === 0 ? -1 : 0)} delta={sameAsPOSDone ? 0 : totalDelta} fireBurst={sameAsPOSDone} showDoneCheck={sameAsPOSDone}>
+            <TaskBlock number={1} title="Review non-sunday tenders" done={done[0]} onToggleDone={() => toggleDone(0)} open={openTask === 0} onToggleOpen={() => setOpenTask(openTask === 0 ? -1 : 0)} delta={sameAsPOSDone ? 0 : nonSundayDelta} fireBurst={sameAsPOSDone}>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
                 <Typography sx={{ fontSize: 12, color: '#666', lineHeight: 1.6 }}>
                   Check each tender line and make sure declared amounts match POS totals.
@@ -316,10 +322,10 @@ export default function TasksPanel({ hasIssues, onAnalyze, onSend, onSameAsPOS, 
                 ) : (
                   <Box onClick={(e) => { e.stopPropagation(); onSameAsPOS?.(); setSameAsPOSDone(true); toggleDone(0); }} sx={{
                     display: 'inline-flex', alignItems: 'center',
-                    px: 1.5, py: 0.6, border: '1.5px solid rgba(0,0,0,0.15)', color: '#1A1A2E',
+                    px: 1.5, py: 0.6, border: '1.5px solid rgba(0,0,0,0.08)', color: '#1A1A2E',
                     borderRadius: '100px', fontSize: 12, fontWeight: 600,
                     cursor: 'pointer', width: 'fit-content', bgcolor: '#fff',
-                    '&:hover': { borderColor: '#1A1A2E', bgcolor: 'rgba(0,0,0,0.02)' },
+                    '&:hover': { borderColor: 'rgba(0,0,0,0.2)', bgcolor: 'rgba(0,0,0,0.02)' },
                   }}>
                     Declare same as POS
                   </Box>
@@ -330,21 +336,44 @@ export default function TasksPanel({ hasIssues, onAnalyze, onSend, onSameAsPOS, 
             <Divider />
 
             {/* Task 2 — Analyze discrepancies */}
-            <TaskBlock number={2} title="Analyze sunday discrepancies" done={done[1]} onToggleDone={() => toggleDone(1)} open={openTask === 1} onToggleOpen={() => setOpenTask(openTask === 1 ? -1 : 1)}>
+            <TaskBlock
+              number={2}
+              title="Analyze discrepancies"
+              subtitle={<Box component="img" src="/Images/AI.svg" alt="AI" sx={{ height: 14, display: 'block' }} />}
+              done={done[1]}
+              onToggleDone={() => toggleDone(1)}
+              open={openTask === 1}
+              onToggleOpen={() => setOpenTask(openTask === 1 ? -1 : 1)}
+              delta={sundayDelta}
+              loading={analyzing}
+              bgGradient="radial-gradient(ellipse at 0% 0%, rgba(255,23,233,0.13) 0%, transparent 55%), radial-gradient(ellipse at 100% 0%, rgba(233,30,140,0.09) 0%, transparent 50%), radial-gradient(ellipse at 50% 120%, rgba(255,184,0,0.07) 0%, transparent 55%), #fff"
+            >
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-                <Typography sx={{ fontSize: 12, color: '#666', lineHeight: 1.6 }}>
+                <Typography sx={{ fontSize: 12, color: '#555', lineHeight: 1.6 }}>
                   Run an AI analysis to identify the root causes of payment discrepancies.
                 </Typography>
                 {!analyzed ? (
-                  <Box onClick={(e) => { e.stopPropagation(); onAnalyze(); setTimeout(() => { setAnalyzed(true); const d = [...done]; d[1] = true; setDone(d); }, 2800); }} sx={{
-                    display: 'inline-flex', alignItems: 'center', gap: 0.75,
-                    px: 1.5, py: 0.6, bgcolor: '#1A1A2E', color: '#fff',
-                    borderRadius: '100px', fontSize: 12, fontWeight: 600,
-                    cursor: 'pointer', width: 'fit-content',
-                    '&:hover': { bgcolor: '#2d2d4e' },
-                  }}>
-                    <AutoFixHigh sx={{ fontSize: 13 }} />
-                    Run analysis
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    <Box onClick={(e) => { e.stopPropagation(); onAnalyze(); setAnalyzing(true); setTimeout(() => { setAnalyzing(false); setAnalyzed(true); const d = [...done]; d[1] = true; setDone(d); }, 2800); }} sx={{
+                      display: 'inline-flex', alignItems: 'center',
+                      px: 1.5, py: 0.6,
+                      bgcolor: '#FF17E9', color: '#fff',
+                      borderRadius: '100px', fontSize: 12, fontWeight: 600,
+                      cursor: 'pointer', width: 'fit-content',
+                      '&:hover': { bgcolor: '#e010d4' },
+                    }}>
+                      Let sundayAI solve it
+                    </Box>
+                    <Box onClick={(e) => { e.stopPropagation(); onAnalyze(); setAnalyzing(true); setTimeout(() => { setAnalyzing(false); setAnalyzed(true); const d = [...done]; d[1] = true; setDone(d); }, 2800); }} sx={{
+                      display: 'inline-flex', alignItems: 'center',
+                      px: 1.5, py: 0.6,
+                      bgcolor: '#1A1A2E', color: '#fff',
+                      borderRadius: '100px', fontSize: 12, fontWeight: 600,
+                      cursor: 'pointer', width: 'fit-content',
+                      '&:hover': { bgcolor: '#2d2d4e' },
+                    }}>
+                      Run analysis
+                    </Box>
                   </Box>
                 ) : (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
@@ -352,7 +381,6 @@ export default function TasksPanel({ hasIssues, onAnalyze, onSend, onSameAsPOS, 
                     <Typography sx={{ fontSize: 12, color: '#4CAF50', fontWeight: 600 }}>Analysis complete</Typography>
                   </Box>
                 )}
-                <Typography sx={{ fontSize: 10, color: '#ccc' }}>Powered by AI</Typography>
               </Box>
             </TaskBlock>
 
@@ -401,7 +429,7 @@ export default function TasksPanel({ hasIssues, onAnalyze, onSend, onSameAsPOS, 
               transition: 'all 0.2s',
               '&:hover': !validated ? { bgcolor: '#2d2d4e' } : {},
             }}>
-              {validated && <Check sx={{ fontSize: 16 }} />}
+              <Check sx={{ fontSize: 16 }} />
               {validated ? 'Day validated' : 'Validate the day'}
             </Box>
           </Box>

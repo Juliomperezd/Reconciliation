@@ -18,10 +18,11 @@ npm run dev        # http://localhost:5173
 ## Rutas
 | URL | Componente |
 |---|---|
-| `/` | `PathSelectorPage` (landing con 3 botones) |
+| `/` | `PathSelectorPage` (landing con 4 botones) |
 | `/path1` | `DailyReportsPage` — Variante A |
 | `/path2` | `DailyReportsPage` — Variante B |
 | `/path3` | `DailyReportsPage` — Variante C |
+| `/path4` | `DailyReportsPageTasks` — Variante con TasksPanel |
 | `/path{N}/tender/:id` | `TenderDetailPage` |
 | `/path{N}/operations` | `OperationsPage` |
 | `/gallery` | `GalleryPage` (sin AppLayout) |
@@ -65,14 +66,30 @@ src/
                                      encima, nombre debajo. ChipInput para POS Tender IDs (add/remove).
                                      Botón negro pill (borderRadius: 100).
       SundayAIModal.jsx            — loading stepper → acordeón de gaps → Snackbar con Undo
+      ReportModal.jsx              — Modal de reporte AI (path3 y path4). Dos columnas cuando se abre
+                                     un issue: izquierda = report, derecha = panel detalle (420px, fondo gris).
+                                     Header con mesh gradient + AI.svg + título "Discrepancies report".
+                                     Issues como filas clickeables con DeltaPill + done circle.
+                                     Panel detalle cierra con ChevronLeft. Close principal siempre top-right.
     panels/
       CommentsPanel.jsx            — Drawer derecho, hideBackdrop, sin overlay oscuro
       HelpPanel.jsx                — Drawer derecho, fondo rosa #FFF0F8, hideBackdrop
+    tasks/
+      TasksPanel.jsx               — Panel lateral derecho en path4. NavPill Tasks/Comments.
+                                     Task 1: "Review non-sunday tenders" — delta de no-sunday, botón
+                                       "Declare same as POS" (gris claro) → marca done + confetti.
+                                     Task 2: "Analyze discrepancies" — mesh gradient + AI.svg subtitle.
+                                       Botones: "Let sundayAI solve it" (#FF17E9 sólido) + "Run analysis" (negro).
+                                       Delta = sunday-qr + sunday-pdq. Loading spinner en done circle.
+                                     Tasks 3-5: aparecen post-análisis (sub-tasks con delta por tender).
+                                     Task final: "Add a comment for your team" → va a tab Comments.
+                                     Validate button con check icon, siempre negro.
+                                     DeltaBadge: pill naranja €XX.XX sin +/-.
     gallery/
       GalleryPage.jsx              — catálogo visual de todos los componentes (ruta /gallery)
     paths/
-      PathSelectorPage.jsx         — landing /. Tres cards para elegir Path1/2/3. Sin AppLayout.
-      PathNavigator.jsx            — widget negro fijo bottom-left. Botones P1/P2/P3 con tooltip.
+      PathSelectorPage.jsx         — landing /. Cuatro cards para elegir Path1/2/3/4. Sin AppLayout.
+      PathNavigator.jsx            — widget negro fijo bottom-left. Botones P1/P2/P3/P4 con tooltip.
                                      Aparece en todos los paths (renderizado en AppLayout).
                                      Path activo resaltado en rosa. Usa useCurrentPath().
 ```
@@ -85,6 +102,19 @@ warning:    #FF9800   // naranja (chips de delta)
 success:    #4CAF50   // verde (checkmarks)
 background: #F5F5F7   // gris claro (fondo de página)
 ```
+
+## Colores AI / sundayAI
+- **#FF17E9** — rosa vivo sundayAI (botones primarios AI, base del mesh gradient)
+- **Mesh gradient**: `radial-gradient(ellipse at 0% 0%, rgba(255,23,233,0.13)…)` + rosa + ámbar sobre `#fff`
+- **Gradient texto**: `linear-gradient(90deg, #FF17E9, #E91E8C, #FFB800)` con WebkitBackgroundClip
+- **AI.svg** en `/Images/AI.svg` — usado como subtitle en Task 2 y header del ReportModal
+- **DeltaCell** (tabla): círculo verde relleno + Check blanco cuando delta=0 (no CheckCircle)
+- **DeltaBadge** (tasks): pill naranja `rgba(251,146,60,0.13)` sin signo +/-
+
+## Flujos interactivos path4 (DailyReportsPageTasks)
+- **Run analysis / Let sundayAI solve it** — floating banner top-right con mesh gradient, spinner rosa → check verde → se cierra tras 2.5s. ReportModal se abre automáticamente.
+- **Declare same as POS** — aplica totalInToast a todos los no-sunday tenders, marca Task 1 done + confetti.
+- **ReportModal issues** — filas clickeables abren panel derecho (420px gris); done circle en cada fila; "Mark as done" en footer del panel.
 
 ## Datos (data/dummy.js)
 Exports: `days`, `tenders`, `operations`, `initialComments`, `sundayAIGaps`, `helpCards`, `posTenders`
